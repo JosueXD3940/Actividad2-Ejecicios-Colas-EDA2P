@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Pintar Carros</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Agregar los íconos de Boxicons -->
+    <link href='https://unpkg.com/boxicons@2.1.1/css/boxicons.min.css' rel='stylesheet'>
+    <style>
+        .car-icon {
+            font-size: 50px;
+            color: gray;
+        }
+        .palette button {
+            width: 40px;
+            height: 40px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #carQueue div {
+            font-size: 40px;
+            margin: 0 10px;
+        }
+        /* Icono para mostrar color seleccionado */
+        .color-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 10px;
+            font-size: 24px;
+        }
+        /* Icono del auto usando Boxicons */
+        .car-boxicon {
+            font-size: 40px;
+        }
+        
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4">
+        <!-- Marcador que se mostrará al perder -->
+        <h2 id="scoreBoard" class="text-2xl font-bold text-center text-red-600 hidden mb-4">Juego terminado. Pintaste <span id="paintedCount"></span> autos en <span id="totalTime"></span> segundos.</h2>
+
+        <!-- Botón para iniciar el juego -->
+        <div id="startButtonContainer" class="text-center mb-8">
+            <button onclick="startGame()" class="bg-green-500 text-white px-6 py-2 rounded-md">Iniciar Juego</button>
+        </div>
+
+        <!-- Paleta de colores -->
+        <div class="palette grid grid-cols-4 gap-0 justify-center mb-8 hidden" id="colorPalette">
+            <button class="bg-red-500" onclick="selectColor('rojo')"></button>
+            <button class="bg-blue-500" onclick="selectColor('azul')"></button>
+            <button class="bg-green-500" onclick="selectColor('verde')"></button>
+            <button class="bg-yellow-500" onclick="selectColor('amarillo')"></button>
+            <button class="bg-purple-500" onclick="selectColor('morado')"></button>
+            <button class="bg-pink-500" onclick="selectColor('rosa')"></button>
+            <button class="bg-orange-500" onclick="selectColor('naranja')"></button>
+            <button class="bg-gray-500" onclick="selectColor('gris')"></button>
+        </div>
+
+        <!-- Indicador de color seleccionado con icono -->
+        <div class="color-indicator hidden" id="colorIndicator">
+            <i id="colorIcon" class="bx bxs-car" style="color: gray;"></i>
+            <span id="selectedColorText" class="ml-2">Color Seleccionado: Ninguno</span>
+        </div>
+
+        <!-- Carros en cola -->
+        <h3 id="queueTitle" class="text-2xl font-semibold text-center mt-8 hidden">Carros en cola</h3>
+        <div id="carQueue" class="flex justify-center mb-8 hidden"></div>
+
+        <!-- Primer carro a pintar -->
+        <div class="text-center mb-4 hidden" id="currentCarContainer">
+            <div id="currentCar" class="inline-block">
+                <i class="bx bxs-car car-boxicon"></i>
+                <p id="carColorLabel" class="mt-2 font-semibold">Color: --</p>
+            </div>
+        </div>
+
+        <!-- Historial de carros pintados -->
+        <h3 id="paintedCarsTitle" class="text-2xl font-semibold text-center mt-8 hidden">Carros Pintados</h3>
+        <ul id="paintedCarsList" class="list-disc list-inside text-center mt-4 hidden"></ul>
+
+        <!-- Botón para intentar de nuevo -->
+        <div class="text-center mt-4 hidden" id="retryButtonContainer">
+            <button onclick="retryGame()" class="bg-blue-500 text-white px-6 py-2 rounded-md">Intentar de Nuevo</button>
+        </div>
+    </div>
+
+    <script>
+        const carColors = ['rojo', 'azul', 'verde', 'amarillo', 'morado', 'rosa', 'naranja', 'gris'];
+        let carQueue = [];
+        let paintedCars = 0;
+        let selectedColor = '';
+        let gameInterval;
+        let startTime;
+        let paintingSpeed = 3000; // 20 segundos por defecto
+
+        // Función para iniciar el juego
+        function startGame() {
+            // Ocultar el botón de inicio y mostrar los elementos del juego
+            document.getElementById('startButtonContainer').classList.add('hidden');
+            document.getElementById('colorPalette').classList.remove('hidden');
+            document.getElementById('colorIndicator').classList.remove('hidden');
+            document.getElementById('queueTitle').classList.remove('hidden');
+            document.getElementById('carQueue').classList.remove('hidden');
+            document.getElementById('currentCarContainer').classList.remove('hidden');
+            document.getElementById('paintedCarsTitle').classList.remove('hidden');
+            document.getElementById('paintedCarsList').classList.remove('hidden');
+
+            paintedCars = 0; // Reiniciar la cantidad de carros pintados
+            carQueue = []; // Vaciar la cola de carros
+
+            startTime = new Date(); // Registrar el tiempo de inicio
+            gameInterval = setInterval(enqueueCar, paintingSpeed); // Encolar un auto cada 20 segundos
+        }
+
+        // Función para reiniciar el juego
+        function retryGame() {
+            // Ocultar el marcador y el botón de "Intentar de nuevo"
+            document.getElementById('scoreBoard').classList.add('hidden');
+            document.getElementById('retryButtonContainer').classList.add('hidden');
+
+            // Mostrar los elementos del juego
+            startGame(); // Reiniciar el juego
+        }
+
+        // Selección de color
+        function selectColor(color) {
+            selectedColor = color;
+            document.getElementById('colorIcon').style.color = getColorHex(color);
+            document.getElementById('selectedColorText').textContent = `Color Seleccionado: ${color}`;
+            paintCar(); // Intentar pintar el carro inmediatamente al seleccionar un color
+        }
+
+        // Obtener el color en formato hex para cambiar el icono
+        function getColorHex(color) {
+            switch (color) {
+                case 'rojo': return '#ef4444';  // Red from Tailwind
+                case 'azul': return '#3b82f6';  // Blue from Tailwind
+                case 'verde': return '#22c55e';  // Green from Tailwind
+                case 'amarillo': return '#eab308';  // Yellow from Tailwind
+                case 'morado': return '#a855f7';  // Purple from Tailwind
+                case 'rosa': return '#ec4899';  // Pink from Tailwind
+                case 'naranja': return '#f97316';  // Orange from Tailwind
+                case 'gris': return '#6b7280';  // Gray from Tailwind
+                default: return 'gray';
+            }
+        }
+
+        // Encolar autos con colores aleatorios
+        function enqueueCar() {
+            if (carQueue.length >= 5) {
+                endGame();
+                return;
+            }
+
+            const randomColor = carColors[Math.floor(Math.random() * carColors.length)];
+            const car = { color: randomColor };
+            carQueue.push(car);
+            displayCarQueue();
+
+            if (carQueue.length === 1) {
+                displayCurrentCar();
+            }
+        }
+
+        // Mostrar el carro actual
+        function displayCurrentCar() {
+            if (carQueue.length === 0) {
+                document.getElementById('carColorLabel').textContent = 'Color: --';
+                return;
+            }
+            const currentCar = carQueue[0];
+            document.getElementById('carColorLabel').textContent = `Color: ${currentCar.color}`;
+        }
+
+        // Mostrar la cola de autos en pantalla
+        function displayCarQueue() {
+            const carQueueElement = document.getElementById('carQueue');
+            carQueueElement.innerHTML = '';
+            carQueue.forEach(car => {
+                const carDiv = document.createElement('div');
+                carDiv.innerHTML = `<i class="bx bxs-car car-boxicon" style="color: ${getColorHex(car.color)};"></i>`;
+                carQueueElement.appendChild(carDiv);
+            });
+        }
+
+        // Pintar el primer auto de la cola
+        function paintCar() {
+            if (carQueue.length === 0) {
+                return; // No hay autos en la cola
+            }
+
+            if (selectedColor === '') {
+                return; // No se ha seleccionado ningún color
+            }
+
+            const currentCar = carQueue[0];
+
+            if (selectedColor === currentCar.color) {
+                paintedCars++;
+                carQueue.shift(); // Remover el auto pintado
+                displayCarQueue();
+                displayPaintedCars();
+                displayCurrentCar();
+                adjustSpeed(); // Aumentar la velocidad después de pintar 3 autos
+            }
+
+            if (carQueue.length === 5) {
+                endGame();
+            }
+        }
+
+        // Mostrar autos pintados
+        function displayPaintedCars() {
+            const paintedCarsList = document.getElementById('paintedCarsList');
+            const li = document.createElement('li');
+            li.textContent = `Carro pintado de color ${selectedColor}`;
+            paintedCarsList.appendChild(li);
+        }
+
+        // Ajustar la velocidad después de pintar 3 carros
+        function adjustSpeed() {
+            if (paintedCars === 3) {
+                clearInterval(gameInterval);
+                paintingSpeed = 650; // Aumentar la velocidad a 10 segundos
+                gameInterval = setInterval(enqueueCar, paintingSpeed);
+            }
+        }
+
+        // Finalizar el juego
+        function endGame() {
+            clearInterval(gameInterval);
+            const endTime = new Date();
+            const totalTime = Math.floor((endTime - startTime) / 1000); // Tiempo total en segundos
+
+            // Mostrar el marcador y el botón de "Intentar de nuevo"
+            document.getElementById('scoreBoard').classList.remove('hidden');
+            document.getElementById('paintedCount').textContent = paintedCars;
+            document.getElementById('totalTime').textContent = totalTime;
+            document.getElementById('retryButtonContainer').classList.remove('hidden');
+
+            // Ocultar los elementos del juego
+            document.getElementById('colorPalette').classList.add('hidden');
+            document.getElementById('colorIndicator').classList.add('hidden');
+            document.getElementById('queueTitle').classList.add('hidden');
+            document.getElementById('carQueue').classList.add('hidden');
+            document.getElementById('currentCarContainer').classList.add('hidden');
+            document.getElementById('paintedCarsTitle').classList.add('hidden');
+            document.getElementById('paintedCarsList').classList.add('hidden');
+        }
+
+        // Iniciar el juego automáticamente
+        //startGame(); // Se inicia manualmente con el botón
+    </script>
+
+</body>
+</html>

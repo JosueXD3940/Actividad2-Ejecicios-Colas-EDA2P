@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplicación Web de Colas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.14.1/dist/umd/lucide.min.js"></script>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-8">Aplicación Web de Colas</h1>
+        
+        <!-- Menú de selección -->
+        <div class="text-center mb-8">
+            <button onclick="showSection('banco')" class="bg-blue-500 text-white px-6 py-2 rounded-md m-2">Cola de Clientes en Banco</button>
+            <button onclick="showSection('estacionamiento')" class="bg-green-500 text-white px-6 py-2 rounded-md m-2">Estacionamiento de Autos</button>
+            <button onclick="window.location.href='PintarCarros.html'" class="bg-yellow-500 text-white px-6 py-2 rounded-md m-2">Juego de Pintar Carros</button>
+        </div>
+
+        <!-- Apartado 1: Cola de Clientes en un Banco -->
+        <div id="banco" class="hidden container bg-white p-4 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold mb-4">Cola de Clientes en un Banco</h2>
+            <form id="clientForm" class="mb-4">
+                <input type="text" id="clientName" class="border p-2 rounded-md w-full mb-2" placeholder="Nombre del Cliente" required>
+                <input type="text" id="clientAsunto" class="border p-2 rounded-md w-full mb-2" placeholder="Asunto" required>
+                <button type="button" onclick="addClient()" class="bg-blue-500 text-white px-6 py-2 rounded-md">Agregar Cliente a la Cola</button>
+            </form>
+            <button id="attendClientBtn" onclick="attendClient()" class="bg-yellow-500 text-white px-6 py-2 rounded-md">Atender Cliente</button>
+            <h3 class="text-xl font-semibold mt-4">Clientes en Espera</h3>
+            <ul id="waitingClients" class="list-disc list-inside mt-2"></ul>
+            <h3 class="text-xl font-semibold mt-4">Clientes Atendidos</h3>
+            <ul id="attendedClients" class="list-disc list-inside mt-2"></ul>
+        </div>
+
+        <!-- Apartado 2: Estacionamiento de autos -->
+        <div id="estacionamiento" class="hidden container bg-white p-4 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold mb-4">Estacionamiento de Autos</h2>
+            <form id="parkingForm" class="mb-4">
+                <input type="text" id="carPlates" class="border p-2 rounded-md w-full mb-2" placeholder="Placas del Auto" required>
+                <input type="text" id="carOwner" class="border p-2 rounded-md w-full mb-2" placeholder="Nombre del Propietario" required>
+                <button type="button" onclick="addCar()" class="bg-green-500 text-white px-6 py-2 rounded-md">Registrar Entrada</button>
+            </form>
+            <button id="exitCarBtn" onclick="exitCar()" class="bg-red-500 text-white px-6 py-2 rounded-md">Registrar Salida de Auto</button>
+            <h3 class="text-xl font-semibold mt-4">Autos Registrados</h3>
+            <ul id="registeredCars" class="list-disc list-inside mt-2"></ul>
+        </div>
+
+        <!-- Apartado 3: Juego de Pintar Carros -->
+        <div id="pintarCarros" class="hidden container bg-white p-4 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold mb-4">Juego de Pintar Carros</h2>
+            <p class="font-semibold">Paleta de Colores:</p>
+            <div class="grid grid-cols-4 gap-2 mb-4">
+                <button class="w-12 h-12 bg-orange-400" onclick="selectColor('naranja')"></button>
+                <button class="w-12 h-12 bg-red-500" onclick="selectColor('rojo')"></button>
+                <button class="w-12 h-12 bg-green-500" onclick="selectColor('verde')"></button>
+                <button class="w-12 h-12 bg-yellow-500" onclick="selectColor('amarillo')"></button>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Carros en Cola</h3>
+            <div id="carQueue" class="flex space-x-4">
+                <!-- Los autos aparecerán aquí -->
+            </div>
+            <div class="mt-4">
+                <button onclick="paintCar()" class="bg-yellow-500 text-white px-6 py-2 rounded-md">Pintar Primer Carro</button>
+            </div>
+            <h3 class="text-xl font-semibold mt-4">Carros Pintados</h3>
+            <ul id="paintedCarsList" class="list-disc list-inside mt-2"></ul>
+            <p id="gameStatus" class="text-center font-bold text-red-500 mt-4"></p>
+        </div>
+    </div>
+
+    <script>
+        // Menú de selección
+        function showSection(section) {
+            document.getElementById('banco').classList.add('hidden');
+            document.getElementById('estacionamiento').classList.add('hidden');
+            document.getElementById('pintarCarros').classList.add('hidden');
+            document.getElementById(section).classList.remove('hidden');
+        }
+
+        // Cola de Clientes en un Banco
+        let clientTurn = 1;
+        const clients = [];
+        const attendedClients = [];
+
+        function addClient() {
+            const name = document.getElementById('clientName').value;
+            const asunto = document.getElementById('clientAsunto').value;
+
+            if (!name || !asunto) {
+                alert("Por favor, completa todos los campos.");
+                return;
+            }
+
+            const client = {
+                turno: clientTurn,
+                name,
+                asunto,
+                fecha: new Date(),
+                entryTime: new Date(),
+            };
+
+            clients.push(client);
+            clientTurn++;
+            displayClients();
+        }
+
+        function displayClients() {
+            const clientList = document.getElementById('waitingClients');
+            clientList.innerHTML = '';
+            clients.forEach(client => {
+                const li = document.createElement('li');
+                li.textContent = `Turno: ${client.turno} - ${client.name}, Asunto: ${client.asunto}, Fecha: ${client.fecha.toLocaleString()}`;
+                clientList.appendChild(li);
+            });
+        }
+
+        function attendClient() {
+            if (clients.length === 0) {
+                alert("No hay clientes en espera.");
+                return;
+            }
+
+            const client = clients.shift();
+            const exitTime = new Date();
+            const timeSpent = (exitTime - client.entryTime) / 1000; // Tiempo en segundos
+            alert(`Cliente atendido: ${client.name}. Tiempo en cola: ${timeSpent} segundos.`);
+
+            attendedClients.push(client);
+            displayClients();
+            displayAttendedClients();
+        }
+
+        function displayAttendedClients() {
+            const attendedList = document.getElementById('attendedClients');
+            attendedList.innerHTML = '';
+            attendedClients.forEach(client => {
+                const li = document.createElement('li');
+                li.textContent = `Turno: ${client.turno} - ${client.name}, Atendido el: ${new Date().toLocaleString()}`;
+                attendedList.appendChild(li);
+            });
+        }
+
+        // Estacionamiento de Autos
+        const cars = [];
+
+        function addCar() {
+            const plates = document.getElementById('carPlates').value;
+            const owner = document.getElementById('carOwner').value;
+
+            if (!plates || !owner) {
+                alert("Por favor, completa todos los campos.");
+                return;
+            }
+
+            if (cars.some(car => car.plates === plates)) {
+                alert("Estas placas ya están registradas.");
+                return;
+            }
+
+            const car = {
+                plates,
+                owner,
+                entryTime: new Date(),
+            };
+
+            cars.push(car);
+            displayCars();
+        }
+
+        function displayCars() {
+            const carList = document.getElementById('registeredCars');
+            carList.innerHTML = '';
+            cars.forEach(car => {
+                const li = document.createElement('li');
+                li.textContent = `Placas: ${car.plates}, Propietario: ${car.owner}, Hora de entrada: ${car.entryTime.toLocaleString()}`;
+                carList.appendChild(li);
+            });
+        }
+
+        function exitCar() {
+            if (cars.length === 0) {
+                alert("No hay autos en el estacionamiento.");
+                return;
+            }
+
+            const car = cars.shift();
+            const exitTime = new Date();
+            const timeSpent = (exitTime - car.entryTime) / 1000; // Tiempo en segundos
+            const cost = timeSpent * 2; // Costo de $2.00 por segundo
+            alert(`Auto con placas ${car.plates} salió. Tiempo: ${timeSpent} segundos. Total a pagar: $${cost.toFixed(2)}.`);
+
+            displayCars();
+        }
+
+        // Juego de Pintar Carros
+        const carColors = ['naranja', 'rojo', 'verde', 'amarillo'];
+        let carQueue = [];
+        let paintedCars = 0;
+        let selectedColor = '';
+        let gameInterval;
+
+        function enqueueCar() {
+            if (carQueue.length >= 5) {
+                endGame();
+                return;
+            }
+
+            const color = carColors[Math.floor(Math.random() * carColors.length)];
+            const car = { color };
+            carQueue.push(car);
+            displayCarQueue();
+        }
+
+        function displayCarQueue() {
+            const carQueueElement = document.getElementById('carQueue');
+            carQueueElement.innerHTML = '';
+            carQueue.forEach(car => {
+                const carDiv = document.createElement('div');
+                carDiv.className = `w-24 h-16 bg-${car.color}-500 text-center text-white font-bold`;
+                carDiv.textContent = car.color.charAt(0).toUpperCase() + car.color.slice(1);
+                carQueueElement.appendChild(carDiv);
+            });
+        }
+
+        function selectColor(color) {
+            selectedColor = color;
+        }
+
+        function paintCar() {
+            if (carQueue.length === 0) {
+                alert("No hay carros en la cola.");
+                return;
+            }
+
+            if (selectedColor === carQueue[0].color) {
+                paintedCars++;
+                carQueue.shift();
+                displayCarQueue();
+                displayPaintedCars();
+                increaseGameSpeed();
+            } else {
+                alert("¡Color incorrecto! Intenta de nuevo.");
+            }
+
+            if (carQueue.length === 5) {
+                endGame();
+            }
+        }
+
+        function displayPaintedCars() {
+            const paintedCarsList = document.getElementById('paintedCarsList');
+            const li = document.createElement('li');
+            li.textContent = `Carro pintado de color ${selectedColor}`;
+            paintedCarsList.appendChild(li);
+        }
+
+        function increaseGameSpeed() {
+            if (paintedCars === 3) {
+                clearInterval(gameInterval);
+                gameInterval = setInterval(enqueueCar, 10000); // Aumentar velocidad a 10 segundos
+            }
+        }
+
+        function startGame() {
+            gameInterval = setInterval(enqueueCar, 20000); // Encolar un auto cada 20 segundos
+        }
+
+        function endGame() {
+            clearInterval(gameInterval);
+            document.getElementById('gameStatus').textContent = `Juego terminado. Has pintado ${paintedCars} carros.`;
+        }
+
+        startGame();
+        // Inicialización de los íconos de Lucide
+        lucide.createIcons();
+    </script>
+
+</body>
+</html>
